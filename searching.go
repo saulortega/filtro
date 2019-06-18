@@ -104,6 +104,40 @@ func (I *SearchingInstance) Parse(r *http.Request) ([]*Condition, error) {
 	return condiciones, nil
 }
 
+func (I *SearchingInstance) ParseFormatted(r *http.Request, Oprdr string) (string, []interface{}, error) {
+	var Clss = []string{}
+	var Args = []interface{}{}
+
+	var Cdcns, err = I.Parse(r)
+	if err != nil {
+		return "", Args, err
+	}
+
+	var likesClauses = []string{}
+	var likesArgs = []interface{}{}
+	for _, c := range Cdcns {
+		switch c.SearchType() {
+		case SearchTypeIn, SearchTypeBoolean:
+			Clss = append(Clss, c.Clause)
+			if c.Args != nil {
+				Args = append(Args, c.Args...)
+			}
+		case SearchTypeLike:
+			likesClauses = append(likesClauses, c.Clause)
+			likesArgs = append(likesArgs, c.Args...)
+		}
+	}
+
+	if len(likesClauses) > 0 {
+		Clss = append(Clss, fmt.Sprintf(`(%s)`, strings.Join(likesClauses, " OR ")))
+		Args = append(Args, likesArgs...)
+	}
+
+	var AllClss = strings.Join(Clss, fmt.Sprintf(" %s ", strings.TrimSpace(Oprdr)))
+
+	return AllClss, Args, nil
+}
+
 //
 //
 //
